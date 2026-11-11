@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.16)
 project(zt)
 find_package(Threads)
 
@@ -184,16 +184,18 @@ if(BUILD_HOST_SELFTEST_ONLY)
     set(ZTS_ENABLE_STATS       FALSE)
 endif()
 
-# Android AAR containing libzt.so
+# Android AAR containing libzt.so, or with ZTS_NDK_ONLY the C API for a native app
 if(${CMAKE_SYSTEM_NAME} MATCHES "Android")
     set(BUILD_ANDROID           TRUE)
-    set(BUILD_STATIC_LIB       FALSE)
-    set(BUILD_SHARED_LIB        TRUE)
     set(BUILD_HOST_SELFTEST    FALSE)
     set(BUILD_HOST_EXAMPLES    FALSE)
-    set(ALLOW_INSTALL_TARGET   FALSE)
-    set(LANG_WRAPPER_FILE ${LIBZT_SRC_DIR}/bindings/java/*.cxx)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DZTS_ENABLE_JAVA=1")
+    if(NOT ZTS_NDK_ONLY)
+        set(BUILD_STATIC_LIB       FALSE)
+        set(BUILD_SHARED_LIB        TRUE)
+        set(ALLOW_INSTALL_TARGET   FALSE)
+        set(LANG_WRAPPER_FILE ${LIBZT_SRC_DIR}/bindings/java/*.cxx)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DZTS_ENABLE_JAVA=1")
+    endif()
 endif()
 
 if(BUILD_MACOS_FRAMEWORK)
@@ -665,8 +667,14 @@ if(BUILD_STATIC_LIB)
                 OUTPUT_NAME zt
                 POSITION_INDEPENDENT_CODE ON
                 LIBRARY_OUTPUT_DIRECTORY ${INTERMEDIATE_LIBRARY_OUTPUT_PATH})
-    set_target_properties(${STATIC_LIB_NAME} PROPERTIES COMPILE_FLAGS "${ZT_FLAGS}")
-    target_link_libraries(${STATIC_LIB_NAME} ${CMAKE_THREAD_LIBS_INIT})
+    set_target_properties(${STATIC_LIB_NAME} PROPERTIES COMPILE_FLAGS "${ZT_FLAGS}"
+        EXPORT_NAME zt)
+    target_include_directories(${STATIC_LIB_NAME} INTERFACE
+        $<BUILD_INTERFACE:${PROJ_DIR}/include> $<INSTALL_INTERFACE:include>)
+    target_link_libraries(${STATIC_LIB_NAME} Threads::Threads)
+    if(BUILD_ANDROID)
+        target_link_libraries(${STATIC_LIB_NAME} log)
+    endif()
 
     if(BUILD_WIN)
         target_link_libraries(${STATIC_LIB_NAME} ${ws2_32_LIBRARY_PATH}
@@ -774,16 +782,23 @@ endif()
 # ------------------------------------------------------------------------------
 
 if (ALLOW_INSTALL_TARGET)
-    set(PUBLIC_ZT_HEADERS ${PROJECT_SOURCE_DIR}/include/ZeroTierSockets.h)
-    set_target_properties(${STATIC_LIB_NAME} PROPERTIES PUBLIC_HEADER
-        "${PUBLIC_ZT_HEADERS}")
-    install(
-        TARGETS ${STATIC_LIB_NAME}
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        PUBLIC_HEADER DESTINATION include)
-    install(
-        TARGETS ${DYNAMIC_LIB_NAME}
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib)
+    if(BUILD_STATIC_LIB)
+        set(PUBLIC_ZT_HEADERS ${PROJECT_SOURCE_DIR}/include/ZeroTierSockets.h)
+        set_target_properties(${STATIC_LIB_NAME} PROPERTIES PUBLIC_HEADER
+            "${PUBLIC_ZT_HEADERS}")
+        install(
+            TARGETS ${STATIC_LIB_NAME}
+            EXPORT libztTargets
+            LIBRARY DESTINATION lib
+            ARCHIVE DESTINATION lib
+            PUBLIC_HEADER DESTINATION include)
+        install(EXPORT libztTargets NAMESPACE libzt:: DESTINATION lib/cmake/libzt)
+        install(FILES ${PROJ_DIR}/pkg/cmake/libztConfig.cmake DESTINATION lib/cmake/libzt)
+    endif()
+    if(BUILD_SHARED_LIB)
+        install(
+            TARGETS ${DYNAMIC_LIB_NAME}
+            LIBRARY DESTINATION lib
+            ARCHIVE DESTINATION lib)
+    endif()
 endif()
