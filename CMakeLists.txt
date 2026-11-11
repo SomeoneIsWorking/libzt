@@ -354,9 +354,11 @@ endif()
 set(ZT_FLAGS "${ZT_FLAGS} -DZT_SDK=1")
 set(ZT_FLAGS "${ZT_FLAGS} -DZT_USE_MINIUPNPC=1")
 set(ZT_FLAGS "${ZT_FLAGS} -D_USING_LWIP_DEFINITIONS_=0")
+# libzt reads no JSON: the controller and service code that does is not built.
+set(ZT_FLAGS "${ZT_FLAGS} -DOMIT_JSON_SUPPORT=1")
 
 if (NOT BUILD_WIN)
-    set(ZT_FLAGS "${ZT_FLAGS} -DOMIT_JSON_SUPPORT=1 -Wno-unused-parameter")
+    set(ZT_FLAGS "${ZT_FLAGS} -Wno-unused-parameter")
     set(LWIP_FLAGS "${LWIP_FLAGS} -Wno-tautological-constant-out-of-range-compare -Wno-parentheses-equality")
 endif()
 
@@ -420,25 +422,10 @@ endif()
 
 # WINDOWS-specific MSVC flags and libraries
 if(BUILD_WIN)
-    # 32-bit
-    if(NOT BUILD_WIN64)
-        set(WINLIBDIR,
-                "C:/Program Files (x86)/Windows Kits/10/Lib/10.0.16299.0/um/x86")
-    endif()
-    # 64-bit
-    if(BUILD_WIN64)
-        set(WINLIBDIR,
-                "C:/Program Files (x86)/Windows Kits/10/Lib/10.0.16299.0/um/x64")
-    endif()
-    # find_library (ws2_32_LIBRARY_PATH NAMES WS2_32 HINTS ${WINLIBDIR})
-    # find_library (shlwapi_LIBRARY_PATH NAMES ShLwApi HINTS ${WINLIBDIR})
-    set(ws2_32_LIBRARY_PATH "${WINLIBDIR}/WS2_32.Lib")
-    set(shlwapi_LIBRARY_PATH "${WINLIBDIR}/ShLwApi.Lib")
-    set(iphlpapi_LIBRARY_PATH "${WINLIBDIR}/iphlpapi.Lib")
-    message(STATUS ${WINLIBDIR})
-    message(STATUS "WS2_32=${ws2_32_LIBRARY_PATH}")
-    message(STATUS "ShLwApi=${shlwapi_LIBRARY_PATH}")
-    message(STATUS "liphlpapi=${iphlpapi_LIBRARY_PATH}")
+    # System libraries by name: the linker finds them in the SDK the toolchain names.
+    set(ws2_32_LIBRARY_PATH ws2_32)
+    set(shlwapi_LIBRARY_PATH shlwapi)
+    set(iphlpapi_LIBRARY_PATH iphlpapi)
     add_definitions(-DADD_EXPORTS=1)
 endif()
 
