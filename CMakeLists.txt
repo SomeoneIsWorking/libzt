@@ -658,6 +658,8 @@ if(BUILD_STATIC_LIB)
         EXPORT_NAME zt)
     target_include_directories(${STATIC_LIB_NAME} INTERFACE
         $<BUILD_INTERFACE:${PROJ_DIR}/include> $<INSTALL_INTERFACE:include>)
+    # Users of the static library call it directly, not through a DLL import.
+    target_compile_definitions(${STATIC_LIB_NAME} INTERFACE ZTS_STATIC)
     target_link_libraries(${STATIC_LIB_NAME} Threads::Threads)
     if(BUILD_ANDROID)
         target_link_libraries(${STATIC_LIB_NAME} log)

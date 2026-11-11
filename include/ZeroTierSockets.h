@@ -1013,6 +1013,9 @@ typedef struct {
 #if defined(_WIN32)
 #ifdef ADD_EXPORTS
 #define ZTS_API __declspec(dllexport)
+#elif defined(ZTS_STATIC)
+// Linked from the static library: nothing to import.
+#define ZTS_API
 #else
 #define ZTS_API __declspec(dllimport)
 #endif
